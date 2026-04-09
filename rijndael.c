@@ -167,7 +167,11 @@ void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
  */
 void add_round_key(unsigned char* block, unsigned char* round_key,
                    aes_block_size_t block_size) {
-  // TODO: Implement me!
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      block[i * 4 + j] ^= round_key[i * 4 + j];
+    }
+  }
 }
 
 /*
