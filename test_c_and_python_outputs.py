@@ -11,9 +11,9 @@ AES_PY_PATH = ROOT / "aes" / "aes.py"
 RIJNDAEL_C_PATH = ROOT / "rijndael.c"
 RIJNDAEL_SO_PATH = ROOT / "rijndael.so"
 
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "aes"))
 
-import aes.aes as aes_py
+import aes as aes_py
 
 AES_BLOCK_128 = 0
 
