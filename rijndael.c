@@ -125,8 +125,33 @@ void shift_rows(unsigned char* block, aes_block_size_t block_size) {
   }
 }
 
+static unsigned char galois_field_multiplier(unsigned char a) {
+  if (a & 0x80) {
+    return (((a << 1) ^ 0x1B) & 0xFF);
+  } else {
+    return (a << 1);
+  }
+}
+
+static void mix_single_column(unsigned char* block, int row) {
+  unsigned char a[4] = {block[row * 4 + 0], block[row * 4 + 1],
+                        block[row * 4 + 2], block[row * 4 + 3]};
+  unsigned char t = a[0] ^ a[1] ^ a[2] ^ a[3];
+  unsigned char u = a[0];
+  a[0] ^= t ^ galois_field_multiplier(a[0] ^ a[1]);
+  a[1] ^= t ^ galois_field_multiplier(a[1] ^ a[2]);
+  a[2] ^= t ^ galois_field_multiplier(a[2] ^ a[3]);
+  a[3] ^= t ^ galois_field_multiplier(a[3] ^ u);
+  block[row * 4 + 0] = a[0];
+  block[row * 4 + 1] = a[1];
+  block[row * 4 + 2] = a[2];
+  block[row * 4 + 3] = a[3];
+}
+
 void mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
+  for (int i = 0; i < 4; i++) {
+    mix_single_column(block, i);
+  }
 }
 
 void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
