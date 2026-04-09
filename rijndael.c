@@ -129,13 +129,6 @@ void mix_columns(unsigned char* block, aes_block_size_t block_size) {
   // TODO: Implement me!
 }
 
-/*
- * Operations used when decrypting a block
- */
-void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
-}
-
 void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
   // TODO: Implement me!
 }
