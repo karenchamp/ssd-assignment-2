@@ -106,7 +106,11 @@ const unsigned char inv_s_box[256] = {
  * Operations used when encrypting a block
  */
 void sub_bytes(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      block[i * 4 + j] = s_box[block[i * 4 + j]];
+    }
+  }
 }
 
 void shift_rows(unsigned char* block, aes_block_size_t block_size) {
