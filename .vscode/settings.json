@@ -4,6 +4,10 @@
         "/^python3 test_c_and_python_outputs\\.py$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^make && python3 test_c_and_python_outputs\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }
