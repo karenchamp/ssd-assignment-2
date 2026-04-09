@@ -38,7 +38,10 @@ def load_c_functions(lib, function_names):
     functions = {}
     for name in function_names:
         func = getattr(lib, name)
-        func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+        if name == 'add_round_key':
+            func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+        else:
+            func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
         func.restype = None
         functions[name] = func
     return functions
@@ -55,13 +58,25 @@ def compare_functions(function_names, num_tests=3):
         print(f"Testing {func_name}...")
         for test_index in range(1, num_tests + 1):
             data = [random.randrange(256) for _ in range(16)]
+            round_key = [random.randrange(256) for _ in range(16)]
+            
             py_state = to_python_state(data.copy())
-            py_func(py_state)
+            py_round_key = to_python_state(round_key.copy())
+            
+            if func_name == 'add_round_key':
+                py_func(py_state, py_round_key)
+            else:
+                py_func(py_state)
             py_output = bytes(flatten_python_state(py_state))
 
             c_buffer_type = ctypes.c_ubyte * 16
             c_buffer = c_buffer_type(*data)
-            c_func(c_buffer, AES_BLOCK_128)
+            c_round_key = c_buffer_type(*round_key)
+            
+            if func_name == 'add_round_key':
+                c_func(c_buffer, c_round_key, AES_BLOCK_128)
+            else:
+                c_func(c_buffer, AES_BLOCK_128)
             c_output = bytes(c_buffer)
 
             if c_output != py_output:
@@ -86,7 +101,7 @@ def main() -> None:
     print(sorted(c_functions))
     print()
     
-    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns']
+    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key']
     print("Running comparison tests...")
     compare_functions(functions_to_test, 3)
     print("All tests passed.")
