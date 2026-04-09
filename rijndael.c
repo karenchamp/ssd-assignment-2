@@ -114,17 +114,18 @@ void sub_bytes(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void shift_rows(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
+  for (int j = 1; j < 4; j++) {
+    for (int s = 0; s < j; s++) {
+      unsigned char temp = block[0 * 4 + j];
+      for (int i = 0; i < 3; i++) {
+        block[i * 4 + j] = block[(i + 1) * 4 + j];
+      }
+      block[3 * 4 + j] = temp;
+    }
+  }
 }
 
 void mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
-}
-
-/*
- * Operations used when decrypting a block
- */
-void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
   // TODO: Implement me!
 }
 

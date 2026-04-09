@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "make": true,
+        "/^python3 test_c_and_python_outputs\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
