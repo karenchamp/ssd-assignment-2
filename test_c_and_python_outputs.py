@@ -40,11 +40,23 @@ def load_c_functions(lib, function_names):
         func = getattr(lib, name)
         if name == 'add_round_key':
             func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+            func.restype = None
         else:
             func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
-        func.restype = None
+            func.restype = None
         functions[name] = func
     return functions
+
+
+def load_c_expand_key(lib):
+    func = lib.expand_key
+    func.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+    func.restype = ctypes.POINTER(ctypes.c_ubyte)
+    return func
+
+
+def flatten_key_matrices(key_matrices):
+    return bytes([byte for matrix in key_matrices for row in matrix for byte in row])
 
 
 def compare_functions(function_names, num_tests=3):
@@ -90,6 +102,31 @@ def compare_functions(function_names, num_tests=3):
         print(f"All {func_name} tests passed.\n")
 
 
+def compare_expand_key(num_tests=3):
+    lib = ctypes.CDLL(str(RIJNDAEL_SO_PATH))
+    c_expand = load_c_expand_key(lib)
+
+    print("Testing expand_key...")
+    for test_index in range(1, num_tests + 1):
+        key = bytes([random.randrange(256) for _ in range(16)])
+        py_output = flatten_key_matrices(aes_py.AES(key)._key_matrices)
+
+        c_buffer_type = ctypes.c_ubyte * 16
+        c_key = c_buffer_type(*key)
+        c_result = c_expand(c_key, AES_BLOCK_128)
+        c_output = bytes(c_result[:176])
+
+        if c_output != py_output:
+            print(f"Test {test_index} for expand_key FAILED")
+            print(f"key: {list(key)}")
+            print(f"python output: {list(py_output)}")
+            print(f"c output:      {list(c_output)}")
+            raise AssertionError("C and Python expand_key outputs differ")
+
+        print(f"  Test {test_index} OK")
+    print("All expand_key tests passed.\n")
+
+
 def main() -> None:
     py_functions = extract_functions(AES_PY_PATH, FUNCTION_PATTERN_PY)
     c_functions = extract_functions(RIJNDAEL_C_PATH, FUNCTION_PATTERN_C)
@@ -104,6 +141,7 @@ def main() -> None:
     functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key']
     print("Running comparison tests...")
     compare_functions(functions_to_test, 3)
+    compare_expand_key(3)
     print("All tests passed.")
 
 
