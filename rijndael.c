@@ -238,9 +238,27 @@ unsigned char* expand_key(unsigned char* cipher_key,
  */
 unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  // TODO: Implement me!
   unsigned char* output = (unsigned char*)malloc(
       sizeof(unsigned char) * block_size_to_bytes(block_size));
+  memcpy(output, plaintext, block_size_to_bytes(block_size));
+
+  unsigned char* expanded_key = expand_key(key, block_size);
+
+  add_round_key(output, &expanded_key[0], block_size);
+
+  for (int round = 1; round <= 10; round++) {
+    sub_bytes(output, block_size);
+    shift_rows(output, block_size);
+
+    if (round != 10) {
+      mix_columns(output, block_size);
+    }
+
+    add_round_key(output, &expanded_key[round * 16], block_size);
+  }
+
+  free(expanded_key);
+
   return output;
 }
 
