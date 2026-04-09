@@ -8,6 +8,10 @@
         "/^make && python3 test_c_and_python_outputs\\.py$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^make && \\./main$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }
