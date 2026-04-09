@@ -86,7 +86,7 @@ def main() -> None:
     print(sorted(c_functions))
     print()
     
-    functions_to_test = ['sub_bytes']
+    functions_to_test = ['sub_bytes', 'shift_rows']
     print("Running comparison tests...")
     compare_functions(functions_to_test, 3)
     print("All tests passed.")
