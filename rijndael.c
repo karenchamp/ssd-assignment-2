@@ -102,6 +102,9 @@ const unsigned char inv_s_box[256] = {
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63,
     0x55, 0x21, 0x0C, 0x7D};
 
+const unsigned char r_con[11] = {0x00, 0x01, 0x02, 0x04, 0x08, 0x10,
+                                 0x20, 0x40, 0x80, 0x1B, 0x36};
+
 /*
  * Operations used when encrypting a block
  */
@@ -181,8 +184,52 @@ void add_round_key(unsigned char* block, unsigned char* round_key,
  */
 unsigned char* expand_key(unsigned char* cipher_key,
                           aes_block_size_t block_size) {
-  // TODO: Implement me!
-  return 0;
+  if (block_size != AES_BLOCK_128) {
+    fprintf(stderr, "expand_key only supports AES_BLOCK_128\n");
+    exit(1);
+  }
+
+  const int key_length = 16;
+  const int expanded_key_length = 176;
+  unsigned char* expanded_key = (unsigned char*)malloc(expanded_key_length);
+  if (!expanded_key) {
+    fprintf(stderr, "Failed to allocate expanded key\n");
+    exit(1);
+  }
+
+  memcpy(expanded_key, cipher_key, key_length);
+  int bytes_generated = key_length;
+  int rcon_iteration = 1;
+  unsigned char temp[4];
+
+  while (bytes_generated < expanded_key_length) {
+    for (int i = 0; i < 4; i++) {
+      temp[i] = expanded_key[bytes_generated - 4 + i];
+    }
+
+    if (bytes_generated % key_length == 0) {
+      unsigned char t = temp[0];
+      temp[0] = temp[1];
+      temp[1] = temp[2];
+      temp[2] = temp[3];
+      temp[3] = t;
+
+      for (int i = 0; i < 4; i++) {
+        temp[i] = s_box[temp[i]];
+      }
+
+      temp[0] ^= r_con[rcon_iteration];
+      rcon_iteration++;
+    }
+
+    for (int i = 0; i < 4; i++) {
+      expanded_key[bytes_generated] =
+          expanded_key[bytes_generated - key_length] ^ temp[i];
+      bytes_generated++;
+    }
+  }
+
+  return expanded_key;
 }
 
 /*
