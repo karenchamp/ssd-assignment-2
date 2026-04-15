@@ -170,7 +170,21 @@ void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  // TODO: Implement me!
+  // To match the Python implementation we have to apply the pre-transformation
+  // to each row, then mix_columns
+  for (int i = 0; i < 4; i++) {
+    unsigned char u = galois_field_multiplier(
+        galois_field_multiplier(block[i * 4 + 0] ^ block[i * 4 + 2]));
+    unsigned char v = galois_field_multiplier(
+        galois_field_multiplier(block[i * 4 + 1] ^ block[i * 4 + 3]));
+    block[i * 4 + 0] ^= u;
+    block[i * 4 + 1] ^= v;
+    block[i * 4 + 2] ^= u;
+    block[i * 4 + 3] ^= v;
+  }
+
+  // Then apply mix_columns
+  mix_columns(block, block_size);
 }
 
 /*

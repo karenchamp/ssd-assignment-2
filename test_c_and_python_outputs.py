@@ -145,7 +145,7 @@ def main() -> None:
     print(sorted(c_functions))
     print()
     
-    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key', 'invert_shift_rows']
+    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key', 'invert_shift_rows', 'invert_mix_columns']
     print("Running comparison tests...")
     compare_functions(functions_to_test, 3)
     compare_expand_key(3)
