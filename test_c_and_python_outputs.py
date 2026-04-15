@@ -63,8 +63,15 @@ def compare_functions(function_names, num_tests=3):
     lib = ctypes.CDLL(str(RIJNDAEL_SO_PATH))
     c_functions = load_c_functions(lib, function_names)
     
+    # Map C function names to Python function names
+    name_mapping = {
+        'invert_shift_rows': 'inv_shift_rows',
+        'invert_mix_columns': 'inv_mix_columns',
+    }
+    
     for func_name in function_names:
-        py_func = getattr(aes_py, func_name)
+        py_func_name = name_mapping.get(func_name, func_name)
+        py_func = getattr(aes_py, py_func_name)
         c_func = c_functions[func_name]
         
         print(f"Testing {func_name}...")
@@ -138,7 +145,7 @@ def main() -> None:
     print(sorted(c_functions))
     print()
     
-    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key']
+    functions_to_test = ['sub_bytes', 'shift_rows', 'mix_columns', 'add_round_key', 'invert_shift_rows']
     print("Running comparison tests...")
     compare_functions(functions_to_test, 3)
     compare_expand_key(3)
