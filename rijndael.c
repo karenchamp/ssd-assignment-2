@@ -157,6 +157,14 @@ void mix_columns(unsigned char* block, aes_block_size_t block_size) {
   }
 }
 
+void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      block[i * 4 + j] = inv_s_box[block[i * 4 + j]];
+    }
+  }
+}
+
 void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
   for (int j = 1; j < 4; j++) {
     for (int s = 0; s < j; s++) {
@@ -286,8 +294,25 @@ unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
 
 unsigned char* aes_decrypt_block(unsigned char* ciphertext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  // TODO: Implement me!
   unsigned char* output = (unsigned char*)malloc(
       sizeof(unsigned char) * block_size_to_bytes(block_size));
+  memcpy(output, ciphertext, block_size_to_bytes(block_size));
+
+  unsigned char* expanded_key = expand_key(key, block_size);
+
+  add_round_key(output, &expanded_key[10 * 16], block_size);
+
+  for (int round = 1; round <= 10; round++) {
+    invert_shift_rows(output, block_size);
+    invert_sub_bytes(output, block_size);
+    add_round_key(output, &expanded_key[(10 - round) * 16], block_size);
+
+    if (round != 10) {
+      invert_mix_columns(output, block_size);
+    }
+  }
+
+  free(expanded_key);
+
   return output;
 }
