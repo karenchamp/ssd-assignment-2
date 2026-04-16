@@ -156,23 +156,24 @@ static unsigned char galois_field_multiplier(unsigned char a) {
   }
 }
 
-static void mix_single_column(unsigned char* block, int row) {
-  unsigned char a[4] = {block[row * 4 + 0], block[row * 4 + 1],
-                        block[row * 4 + 2], block[row * 4 + 3]};
+static void mix_single_column(unsigned char* block, size_t column) {
+  unsigned char a[4] = {block[column * 4 + 0], block[column * 4 + 1],
+                        block[column * 4 + 2], block[column * 4 + 3]};
   unsigned char t = a[0] ^ a[1] ^ a[2] ^ a[3];
   unsigned char u = a[0];
   a[0] ^= t ^ galois_field_multiplier(a[0] ^ a[1]);
   a[1] ^= t ^ galois_field_multiplier(a[1] ^ a[2]);
   a[2] ^= t ^ galois_field_multiplier(a[2] ^ a[3]);
   a[3] ^= t ^ galois_field_multiplier(a[3] ^ u);
-  block[row * 4 + 0] = a[0];
-  block[row * 4 + 1] = a[1];
-  block[row * 4 + 2] = a[2];
-  block[row * 4 + 3] = a[3];
+  block[column * 4 + 0] = a[0];
+  block[column * 4 + 1] = a[1];
+  block[column * 4 + 2] = a[2];
+  block[column * 4 + 3] = a[3];
 }
 
 void mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  for (int i = 0; i < 4; i++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
     mix_single_column(block, i);
   }
 }
@@ -200,9 +201,8 @@ void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  // To match the Python implementation we have to apply the pre-transformation
-  // to each row, then mix_columns
-  for (int i = 0; i < 4; i++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
     unsigned char u = galois_field_multiplier(
         galois_field_multiplier(block[i * 4 + 0] ^ block[i * 4 + 2]));
     unsigned char v = galois_field_multiplier(
@@ -213,7 +213,6 @@ void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
     block[i * 4 + 3] ^= v;
   }
 
-  // Then apply mix_columns
   mix_columns(block, block_size);
 }
 
