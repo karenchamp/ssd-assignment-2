@@ -25,6 +25,24 @@ size_t block_size_to_bytes(aes_block_size_t block_size) {
   }
 }
 
+size_t block_size_to_columns(aes_block_size_t block_size) {
+  return block_size_to_bytes(block_size) / 4;
+}
+
+size_t block_size_to_rounds(aes_block_size_t block_size) {
+  switch (block_size) {
+    case AES_BLOCK_128:
+      return 10;
+    case AES_BLOCK_256:
+      return 14;
+    case AES_BLOCK_512:
+      return 22;
+    default:
+      fprintf(stderr, "Invalid block size %d\n", block_size);
+      exit(1);
+  }
+}
+
 unsigned char block_access(unsigned char* block, size_t row, size_t col,
                            aes_block_size_t block_size) {
   int row_len;
@@ -268,23 +286,27 @@ unsigned char* expand_key(unsigned char* cipher_key,
  */
 unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  unsigned char* output = (unsigned char*)malloc(
-      sizeof(unsigned char) * block_size_to_bytes(block_size));
-  memcpy(output, plaintext, block_size_to_bytes(block_size));
+  size_t block_bytes = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_bytes;
+  size_t rounds = block_size_to_rounds(block_size);
+
+  unsigned char* output =
+      (unsigned char*)malloc(sizeof(unsigned char) * block_bytes);
+  memcpy(output, plaintext, block_bytes);
 
   unsigned char* expanded_key = expand_key(key, block_size);
 
   add_round_key(output, &expanded_key[0], block_size);
 
-  for (int round = 1; round <= 10; round++) {
+  for (size_t round = 1; round <= rounds; round++) {
     sub_bytes(output, block_size);
     shift_rows(output, block_size);
 
-    if (round != 10) {
+    if (round != rounds) {
       mix_columns(output, block_size);
     }
 
-    add_round_key(output, &expanded_key[round * 16], block_size);
+    add_round_key(output, &expanded_key[round * round_key_bytes], block_size);
   }
 
   free(expanded_key);
@@ -294,20 +316,25 @@ unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
 
 unsigned char* aes_decrypt_block(unsigned char* ciphertext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  unsigned char* output = (unsigned char*)malloc(
-      sizeof(unsigned char) * block_size_to_bytes(block_size));
-  memcpy(output, ciphertext, block_size_to_bytes(block_size));
+  size_t block_bytes = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_bytes;
+  size_t rounds = block_size_to_rounds(block_size);
+
+  unsigned char* output =
+      (unsigned char*)malloc(sizeof(unsigned char) * block_bytes);
+  memcpy(output, ciphertext, block_bytes);
 
   unsigned char* expanded_key = expand_key(key, block_size);
 
-  add_round_key(output, &expanded_key[10 * 16], block_size);
+  add_round_key(output, &expanded_key[rounds * round_key_bytes], block_size);
 
-  for (int round = 1; round <= 10; round++) {
+  for (size_t round = 1; round <= rounds; round++) {
     invert_shift_rows(output, block_size);
     invert_sub_bytes(output, block_size);
-    add_round_key(output, &expanded_key[(10 - round) * 16], block_size);
+    add_round_key(output, &expanded_key[(rounds - round) * round_key_bytes],
+                  block_size);
 
-    if (round != 10) {
+    if (round != rounds) {
       invert_mix_columns(output, block_size);
     }
   }
