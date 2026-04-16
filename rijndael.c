@@ -128,9 +128,9 @@ const unsigned char r_con[11] = {0x00, 0x01, 0x02, 0x04, 0x08, 0x10,
  */
 void sub_bytes(unsigned char* block, aes_block_size_t block_size) {
   size_t columns = block_size_to_columns(block_size);
-  for (size_t i = 0; i < 4; i++) {
-    for (size_t j = 0; j < columns; j++) {
-      block[i * columns + j] = s_box[block[i * columns + j]];
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
+      block[i * 4 + j] = s_box[block[i * 4 + j]];
     }
   }
 }
@@ -193,9 +193,9 @@ void mix_columns(unsigned char* block, aes_block_size_t block_size) {
 
 void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
   size_t columns = block_size_to_columns(block_size);
-  for (size_t i = 0; i < 4; i++) {
-    for (size_t j = 0; j < columns; j++) {
-      block[i * columns + j] = inv_s_box[block[i * columns + j]];
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
+      block[i * 4 + j] = inv_s_box[block[i * 4 + j]];
     }
   }
 }
@@ -235,9 +235,9 @@ void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
 void add_round_key(unsigned char* block, unsigned char* round_key,
                    aes_block_size_t block_size) {
   size_t columns = block_size_to_columns(block_size);
-  for (size_t i = 0; i < 4; i++) {
-    for (size_t j = 0; j < columns; j++) {
-      block[i * columns + j] ^= round_key[i * columns + j];
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
+      block[i * 4 + j] ^= round_key[i * 4 + j];
     }
   }
 }
