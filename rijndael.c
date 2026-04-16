@@ -156,6 +156,19 @@ static unsigned char galois_field_multiplier(unsigned char a) {
   }
 }
 
+static unsigned char rcon_value(size_t iteration) {
+  unsigned char c = 1;
+  if (iteration == 0) {
+    return 0;
+  }
+
+  for (size_t i = 1; i < iteration; i++) {
+    c = galois_field_multiplier(c);
+  }
+
+  return c;
+}
+
 static void mix_single_column(unsigned char* block, size_t column) {
   unsigned char a[4] = {block[column * 4 + 0], block[column * 4 + 1],
                         block[column * 4 + 2], block[column * 4 + 3]};
@@ -229,20 +242,14 @@ void add_round_key(unsigned char* block, unsigned char* round_key,
   }
 }
 
-/*
- * This function should expand the round key. Given an input,
- * which is a single 128-bit key, it should return a 176-byte
- * vector, containing the 11 round keys one after the other
- */
 unsigned char* expand_key(unsigned char* cipher_key,
                           aes_block_size_t block_size) {
-  if (block_size != AES_BLOCK_128) {
-    fprintf(stderr, "expand_key only supports AES_BLOCK_128\n");
-    exit(1);
-  }
+  size_t key_length = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_size_to_bytes(block_size);
+  size_t rounds = block_size_to_rounds(block_size);
+  size_t expanded_key_length = (rounds + 1) * round_key_bytes;
+  size_t iteration_size = key_length / 4;
 
-  const int key_length = 16;
-  const int expanded_key_length = 176;
   unsigned char* expanded_key = (unsigned char*)malloc(expanded_key_length);
   if (!expanded_key) {
     fprintf(stderr, "Failed to allocate expanded key\n");
@@ -250,12 +257,12 @@ unsigned char* expand_key(unsigned char* cipher_key,
   }
 
   memcpy(expanded_key, cipher_key, key_length);
-  int bytes_generated = key_length;
-  int rcon_iteration = 1;
+  size_t bytes_generated = key_length;
+  size_t rcon_iteration = 1;
   unsigned char temp[4];
 
   while (bytes_generated < expanded_key_length) {
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
       temp[i] = expanded_key[bytes_generated - 4 + i];
     }
 
@@ -266,15 +273,19 @@ unsigned char* expand_key(unsigned char* cipher_key,
       temp[2] = temp[3];
       temp[3] = t;
 
-      for (int i = 0; i < 4; i++) {
+      for (size_t i = 0; i < 4; i++) {
         temp[i] = s_box[temp[i]];
       }
 
-      temp[0] ^= r_con[rcon_iteration];
+      temp[0] ^= rcon_value(rcon_iteration);
       rcon_iteration++;
+    } else if (iteration_size > 6 && (bytes_generated % key_length == 16)) {
+      for (size_t i = 0; i < 4; i++) {
+        temp[i] = s_box[temp[i]];
+      }
     }
 
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
       expanded_key[bytes_generated] =
           expanded_key[bytes_generated - key_length] ^ temp[i];
       bytes_generated++;
