@@ -25,6 +25,24 @@ size_t block_size_to_bytes(aes_block_size_t block_size) {
   }
 }
 
+size_t block_size_to_columns(aes_block_size_t block_size) {
+  return block_size_to_bytes(block_size) / 4;
+}
+
+size_t block_size_to_rounds(aes_block_size_t block_size) {
+  switch (block_size) {
+    case AES_BLOCK_128:
+      return 10;
+    case AES_BLOCK_256:
+      return 14;
+    case AES_BLOCK_512:
+      return 22;
+    default:
+      fprintf(stderr, "Invalid block size %d\n", block_size);
+      exit(1);
+  }
+}
+
 unsigned char block_access(unsigned char* block, size_t row, size_t col,
                            aes_block_size_t block_size) {
   int row_len;
@@ -109,21 +127,23 @@ const unsigned char r_con[11] = {0x00, 0x01, 0x02, 0x04, 0x08, 0x10,
  * Operations used when encrypting a block
  */
 void sub_bytes(unsigned char* block, aes_block_size_t block_size) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
       block[i * 4 + j] = s_box[block[i * 4 + j]];
     }
   }
 }
 
 void shift_rows(unsigned char* block, aes_block_size_t block_size) {
-  for (int j = 1; j < 4; j++) {
-    for (int s = 0; s < j; s++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t j = 1; j < 4; j++) {
+    for (size_t s = 0; s < j; s++) {
       unsigned char temp = block[0 * 4 + j];
-      for (int i = 0; i < 3; i++) {
+      for (size_t i = 0; i < columns - 1; i++) {
         block[i * 4 + j] = block[(i + 1) * 4 + j];
       }
-      block[3 * 4 + j] = temp;
+      block[(columns - 1) * 4 + j] = temp;
     }
   }
 }
@@ -136,40 +156,56 @@ static unsigned char galois_field_multiplier(unsigned char a) {
   }
 }
 
-static void mix_single_column(unsigned char* block, int row) {
-  unsigned char a[4] = {block[row * 4 + 0], block[row * 4 + 1],
-                        block[row * 4 + 2], block[row * 4 + 3]};
+static unsigned char rcon_value(size_t iteration) {
+  unsigned char c = 1;
+  if (iteration == 0) {
+    return 0;
+  }
+
+  for (size_t i = 1; i < iteration; i++) {
+    c = galois_field_multiplier(c);
+  }
+
+  return c;
+}
+
+static void mix_single_column(unsigned char* block, size_t column) {
+  unsigned char a[4] = {block[column * 4 + 0], block[column * 4 + 1],
+                        block[column * 4 + 2], block[column * 4 + 3]};
   unsigned char t = a[0] ^ a[1] ^ a[2] ^ a[3];
   unsigned char u = a[0];
   a[0] ^= t ^ galois_field_multiplier(a[0] ^ a[1]);
   a[1] ^= t ^ galois_field_multiplier(a[1] ^ a[2]);
   a[2] ^= t ^ galois_field_multiplier(a[2] ^ a[3]);
   a[3] ^= t ^ galois_field_multiplier(a[3] ^ u);
-  block[row * 4 + 0] = a[0];
-  block[row * 4 + 1] = a[1];
-  block[row * 4 + 2] = a[2];
-  block[row * 4 + 3] = a[3];
+  block[column * 4 + 0] = a[0];
+  block[column * 4 + 1] = a[1];
+  block[column * 4 + 2] = a[2];
+  block[column * 4 + 3] = a[3];
 }
 
 void mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  for (int i = 0; i < 4; i++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
     mix_single_column(block, i);
   }
 }
 
 void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
       block[i * 4 + j] = inv_s_box[block[i * 4 + j]];
     }
   }
 }
 
 void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
-  for (int j = 1; j < 4; j++) {
-    for (int s = 0; s < j; s++) {
-      unsigned char temp = block[3 * 4 + j];
-      for (int i = 3; i > 0; i--) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t j = 1; j < 4; j++) {
+    for (size_t s = 0; s < j; s++) {
+      unsigned char temp = block[(columns - 1) * 4 + j];
+      for (size_t i = columns - 1; i > 0; i--) {
         block[i * 4 + j] = block[(i - 1) * 4 + j];
       }
       block[0 * 4 + j] = temp;
@@ -178,9 +214,8 @@ void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
-  // To match the Python implementation we have to apply the pre-transformation
-  // to each row, then mix_columns
-  for (int i = 0; i < 4; i++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
     unsigned char u = galois_field_multiplier(
         galois_field_multiplier(block[i * 4 + 0] ^ block[i * 4 + 2]));
     unsigned char v = galois_field_multiplier(
@@ -191,7 +226,6 @@ void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
     block[i * 4 + 3] ^= v;
   }
 
-  // Then apply mix_columns
   mix_columns(block, block_size);
 }
 
@@ -200,27 +234,22 @@ void invert_mix_columns(unsigned char* block, aes_block_size_t block_size) {
  */
 void add_round_key(unsigned char* block, unsigned char* round_key,
                    aes_block_size_t block_size) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t i = 0; i < columns; i++) {
+    for (size_t j = 0; j < 4; j++) {
       block[i * 4 + j] ^= round_key[i * 4 + j];
     }
   }
 }
 
-/*
- * This function should expand the round key. Given an input,
- * which is a single 128-bit key, it should return a 176-byte
- * vector, containing the 11 round keys one after the other
- */
 unsigned char* expand_key(unsigned char* cipher_key,
                           aes_block_size_t block_size) {
-  if (block_size != AES_BLOCK_128) {
-    fprintf(stderr, "expand_key only supports AES_BLOCK_128\n");
-    exit(1);
-  }
+  size_t key_length = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_size_to_bytes(block_size);
+  size_t rounds = block_size_to_rounds(block_size);
+  size_t expanded_key_length = (rounds + 1) * round_key_bytes;
+  size_t iteration_size = key_length / 4;
 
-  const int key_length = 16;
-  const int expanded_key_length = 176;
   unsigned char* expanded_key = (unsigned char*)malloc(expanded_key_length);
   if (!expanded_key) {
     fprintf(stderr, "Failed to allocate expanded key\n");
@@ -228,12 +257,12 @@ unsigned char* expand_key(unsigned char* cipher_key,
   }
 
   memcpy(expanded_key, cipher_key, key_length);
-  int bytes_generated = key_length;
-  int rcon_iteration = 1;
+  size_t bytes_generated = key_length;
+  size_t rcon_iteration = 1;
   unsigned char temp[4];
 
   while (bytes_generated < expanded_key_length) {
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
       temp[i] = expanded_key[bytes_generated - 4 + i];
     }
 
@@ -244,15 +273,19 @@ unsigned char* expand_key(unsigned char* cipher_key,
       temp[2] = temp[3];
       temp[3] = t;
 
-      for (int i = 0; i < 4; i++) {
+      for (size_t i = 0; i < 4; i++) {
         temp[i] = s_box[temp[i]];
       }
 
-      temp[0] ^= r_con[rcon_iteration];
+      temp[0] ^= rcon_value(rcon_iteration);
       rcon_iteration++;
+    } else if (iteration_size > 6 && (bytes_generated % key_length == 16)) {
+      for (size_t i = 0; i < 4; i++) {
+        temp[i] = s_box[temp[i]];
+      }
     }
 
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
       expanded_key[bytes_generated] =
           expanded_key[bytes_generated - key_length] ^ temp[i];
       bytes_generated++;
@@ -268,23 +301,27 @@ unsigned char* expand_key(unsigned char* cipher_key,
  */
 unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  unsigned char* output = (unsigned char*)malloc(
-      sizeof(unsigned char) * block_size_to_bytes(block_size));
-  memcpy(output, plaintext, block_size_to_bytes(block_size));
+  size_t block_bytes = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_bytes;
+  size_t rounds = block_size_to_rounds(block_size);
+
+  unsigned char* output =
+      (unsigned char*)malloc(sizeof(unsigned char) * block_bytes);
+  memcpy(output, plaintext, block_bytes);
 
   unsigned char* expanded_key = expand_key(key, block_size);
 
   add_round_key(output, &expanded_key[0], block_size);
 
-  for (int round = 1; round <= 10; round++) {
+  for (size_t round = 1; round <= rounds; round++) {
     sub_bytes(output, block_size);
     shift_rows(output, block_size);
 
-    if (round != 10) {
+    if (round != rounds) {
       mix_columns(output, block_size);
     }
 
-    add_round_key(output, &expanded_key[round * 16], block_size);
+    add_round_key(output, &expanded_key[round * round_key_bytes], block_size);
   }
 
   free(expanded_key);
@@ -294,20 +331,25 @@ unsigned char* aes_encrypt_block(unsigned char* plaintext, unsigned char* key,
 
 unsigned char* aes_decrypt_block(unsigned char* ciphertext, unsigned char* key,
                                  aes_block_size_t block_size) {
-  unsigned char* output = (unsigned char*)malloc(
-      sizeof(unsigned char) * block_size_to_bytes(block_size));
-  memcpy(output, ciphertext, block_size_to_bytes(block_size));
+  size_t block_bytes = block_size_to_bytes(block_size);
+  size_t round_key_bytes = block_bytes;
+  size_t rounds = block_size_to_rounds(block_size);
+
+  unsigned char* output =
+      (unsigned char*)malloc(sizeof(unsigned char) * block_bytes);
+  memcpy(output, ciphertext, block_bytes);
 
   unsigned char* expanded_key = expand_key(key, block_size);
 
-  add_round_key(output, &expanded_key[10 * 16], block_size);
+  add_round_key(output, &expanded_key[rounds * round_key_bytes], block_size);
 
-  for (int round = 1; round <= 10; round++) {
+  for (size_t round = 1; round <= rounds; round++) {
     invert_shift_rows(output, block_size);
     invert_sub_bytes(output, block_size);
-    add_round_key(output, &expanded_key[(10 - round) * 16], block_size);
+    add_round_key(output, &expanded_key[(rounds - round) * round_key_bytes],
+                  block_size);
 
-    if (round != 10) {
+    if (round != rounds) {
       invert_mix_columns(output, block_size);
     }
   }
