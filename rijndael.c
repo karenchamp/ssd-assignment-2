@@ -136,13 +136,14 @@ void sub_bytes(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void shift_rows(unsigned char* block, aes_block_size_t block_size) {
-  for (int j = 1; j < 4; j++) {
-    for (int s = 0; s < j; s++) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t j = 1; j < 4; j++) {
+    for (size_t s = 0; s < j; s++) {
       unsigned char temp = block[0 * 4 + j];
-      for (int i = 0; i < 3; i++) {
+      for (size_t i = 0; i < columns - 1; i++) {
         block[i * 4 + j] = block[(i + 1) * 4 + j];
       }
-      block[3 * 4 + j] = temp;
+      block[(columns - 1) * 4 + j] = temp;
     }
   }
 }
@@ -186,10 +187,11 @@ void invert_sub_bytes(unsigned char* block, aes_block_size_t block_size) {
 }
 
 void invert_shift_rows(unsigned char* block, aes_block_size_t block_size) {
-  for (int j = 1; j < 4; j++) {
-    for (int s = 0; s < j; s++) {
-      unsigned char temp = block[3 * 4 + j];
-      for (int i = 3; i > 0; i--) {
+  size_t columns = block_size_to_columns(block_size);
+  for (size_t j = 1; j < 4; j++) {
+    for (size_t s = 0; s < j; s++) {
+      unsigned char temp = block[(columns - 1) * 4 + j];
+      for (size_t i = columns - 1; i > 0; i--) {
         block[i * 4 + j] = block[(i - 1) * 4 + j];
       }
       block[0 * 4 + j] = temp;
