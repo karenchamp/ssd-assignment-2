@@ -43,35 +43,6 @@ size_t block_size_to_rounds(aes_block_size_t block_size) {
   }
 }
 
-unsigned char block_access(unsigned char* block, size_t row, size_t col,
-                           aes_block_size_t block_size) {
-  int row_len;
-  switch (block_size) {
-    case AES_BLOCK_128:
-      row_len = 4;
-      break;
-    case AES_BLOCK_256:
-      row_len = 8;
-      break;
-    case AES_BLOCK_512:
-      row_len = 16;
-      break;
-    default:
-      fprintf(stderr, "Invalid block size for block_access: %d\n", block_size);
-      exit(1);
-  }
-
-  return block[(row * row_len) + col];
-}
-
-char* message(char n) {
-  char* output = (char*)malloc(7);
-  strcpy(output, "hello");
-  output[5] = n;
-  output[6] = 0;
-  return output;
-}
-
 const unsigned char s_box[256] = {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B,
     0xFE, 0xD7, 0xAB, 0x76, 0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0,
