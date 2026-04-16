@@ -1,15 +1,13 @@
 /*
  * Name: Karen Champ
  * Student number: D23125066
- * Description: TODO
  */
+
+#include "rijndael.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// TODO: Any other files you need to include should go here
-
-#include "rijndael.h"
 
 size_t block_size_to_bytes(aes_block_size_t block_size) {
   switch (block_size) {
@@ -62,14 +60,6 @@ unsigned char block_access(unsigned char* block, size_t row, size_t col,
   }
 
   return block[(row * row_len) + col];
-}
-
-char* message(char n) {
-  char* output = (char*)malloc(7);
-  strcpy(output, "hello");
-  output[5] = n;
-  output[6] = 0;
-  return output;
 }
 
 const unsigned char s_box[256] = {
