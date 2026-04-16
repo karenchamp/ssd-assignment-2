@@ -6,6 +6,8 @@
 #ifndef RIJNDAEL_H
 #define RIJNDAEL_H
 
+#include <stddef.h>
+
 typedef enum { AES_BLOCK_128, AES_BLOCK_256, AES_BLOCK_512 } aes_block_size_t;
 
 unsigned char block_access(unsigned char* block, size_t row, size_t col,
