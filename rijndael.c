@@ -1,15 +1,13 @@
 /*
  * Name: Karen Champ
  * Student number: D23125066
- * Description: TODO
  */
+
+#include "rijndael.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// TODO: Any other files you need to include should go here
-
-#include "rijndael.h"
 
 size_t block_size_to_bytes(aes_block_size_t block_size) {
   switch (block_size) {
@@ -41,6 +39,27 @@ size_t block_size_to_rounds(aes_block_size_t block_size) {
       fprintf(stderr, "Invalid block size %d\n", block_size);
       exit(1);
   }
+}
+
+unsigned char block_access(unsigned char* block, size_t row, size_t col,
+                           aes_block_size_t block_size) {
+  int row_len;
+  switch (block_size) {
+    case AES_BLOCK_128:
+      row_len = 4;
+      break;
+    case AES_BLOCK_256:
+      row_len = 8;
+      break;
+    case AES_BLOCK_512:
+      row_len = 16;
+      break;
+    default:
+      fprintf(stderr, "Invalid block size for block_access: %d\n", block_size);
+      exit(1);
+  }
+
+  return block[(row * row_len) + col];
 }
 
 const unsigned char s_box[256] = {
